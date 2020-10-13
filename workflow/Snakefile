@@ -1,0 +1,75 @@
+#Define samples from run_links dir using wildcards
+#18AR1374_R1_trim_PE.fastq.gz
+SAMPLES, = glob_wildcards("../run_links/{sample}_R1_trim_PE.fastq.gz")
+
+#Target rule
+rule all:
+    input:
+        "../ref/FA1090ref.amb",
+        "../ref/FA1090ref.ann",
+        "../ref/FA1090ref.bwt",
+        "../ref/FA1090ref.pac",
+        "../ref/FA1090ref.sa",
+        expand("../output/sorted/{sample}.sorted.bam", sample=SAMPLES)
+
+
+rule bwa_index_build:
+    input:
+        "../ref/Ngono_FA1090.fna"
+    conda:
+        "envs/SNPcall.yaml"
+    output:
+        "../ref/FA1090ref.amb",
+        "../ref/FA1090ref.ann",
+        "../ref/FA1090ref.bwt",
+        "../ref/FA1090ref.pac",
+        "../ref/FA1090ref.sa"
+    shell:
+        """
+        bwa index -p ../ref/FA1090ref {input}
+        """
+
+rule bwa_map:
+    input:
+        BT_index = rules.bwa_index_build.output,
+        R1="../run_links/{sample}_R1_trim_PE.fastq.gz",
+        R2="../run_links/{sample}_R2_trim_PE.fastq.gz"
+    conda:
+        "./envs/SNPcall.yaml"
+    log:
+        "../logs/bwa/{sample}.log"
+    output:
+        "../output/sam/{sample}.sam"
+    shell:
+        "bwa mem -t 12 ../ref/FA1090ref {input.R1} {input.R2} > {output}"
+
+
+rule samtools_view:
+    input:
+        "../output/sam/{sample}.sam"
+    output:
+        "../output/bam/{sample}.bam"
+    shell:
+        "samtools view -q 30 -bS {input} > {output}"
+        #samtools bam cut-off of 30?? for good alignments
+
+rule samtools_sort:
+    input:
+        "../output/bam/{sample}.bam"
+    conda:
+        "envs/SNPcall.yaml"
+    output:
+        "../output/sorted/{sample}.sorted.bam"
+    shell:
+        "samtools sort {input} > {output}"
+
+
+rule mpileup
+    input:
+        "../output/bam/{sample}sorted.bam"
+    conda:
+        "envs/SNPcall.yaml"
+    output:
+        "../output/sorted/{sample}.sorted.bam"
+    shell:
+        "samtools mpileup -L1000 -d 1000 -m {input} | bcftools call -A -M -v -S"

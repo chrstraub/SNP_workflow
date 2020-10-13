@@ -1,0 +1,11 @@
+{
+    "__default__" :
+    {
+        "account" : "cstraub",
+        "nodes" : 1,
+        "ntasks" : 12,
+        "partition" : "prod",
+        "output"    : "..logs/cluster/{rule}.{wildcards}.out",
+        "error"     : "../logs/cluster/{rule}.{wildcards}.err"
+    }
+}
