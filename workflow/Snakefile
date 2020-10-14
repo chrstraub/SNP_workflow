@@ -80,7 +80,7 @@ rule picard_mark_duplicates:
 # collect BAM files that match the {sample} wildcard.
 def qualimap_input(wildcards):
    files = expand('../output/dedup/{sample}_dedup.bam', sample=SAMPLES)
-   return filems
+   return files
 
 #create input file for qualimap and run multibam qc on all files
 rule qualimap_tab:
@@ -92,25 +92,24 @@ rule qualimap_tab:
         """
         for i in {input};
             do 
-                
                 id=$(basename $i .bam)
-                echo -e "${{id}}\t../../output/dedup/${{id}}.bam" >> {output}
+                echo -e "${{id}}\t${{i}}" >> {output}
             done
         """
 
 #run multiqc
 rule qualimap_multiqc:
     input:
-        "../output/multibamqc/multibamqc.tab"
+        tab="../output/multibamqc/multibamqc.tab",
+        gff="../ref/Ngono_FA1090_genomic.gff"
     output:
-        "../output/multibamqc/report"
+        directory("../output/multibamqc/report")
     conda:
         "envs/qualimap.yaml"
     params:
         threads=8
     shell:
-        "qualimap multi-bamqc -d {input} --outdir {output}"
-
+        "qualimap multi-bamqc -r -d {input.tab} -gff {input.gff} --outdir {output}"
 
 
 # #SNP calling

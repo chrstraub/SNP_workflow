@@ -45,3 +45,4 @@ snakemake --use-conda -n -R -j 4 --cores 12 -p --cluster-config ../config/cluste
 snakemake --rerun-incomplete --use-conda -R all -j 4 --cores 12 -p --cluster-config ../config/cluster.json --cluster "sbatch -A {cluster.account} -p {cluster.partition} --ntasks {cluster.ntasks}" --latency-wait 300
 
 ```
+
