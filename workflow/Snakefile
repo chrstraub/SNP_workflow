@@ -2,6 +2,7 @@
 #18AR1374_R1_trim_PE.fastq.gz
 SAMPLES, = glob_wildcards("../run_links/{sample}_R1_trim_PE.fastq.gz")
 
+localrules: qualimap_tab
 #Target rule
 rule all:
     input:
@@ -10,14 +11,16 @@ rule all:
         "../ref/FA1090ref.bwt",
         "../ref/FA1090ref.pac",
         "../ref/FA1090ref.sa",
-        expand("../output/sorted/{sample}.sorted.bam", sample=SAMPLES)
+        expand("../output/dedup/{sample}_dedup.bam", sample=SAMPLES),
+        expand("../output/dedup/{sample}_marked_dedup_metrics.txt", sample=SAMPLES), 
+        "../output/multibamqc/report"
 
-
+#Create index for reference
 rule bwa_index_build:
     input:
         "../ref/Ngono_FA1090.fna"
     conda:
-        "envs/SNPcall.yaml"
+        "envs/bwa.yaml"
     output:
         "../ref/FA1090ref.amb",
         "../ref/FA1090ref.ann",
@@ -29,21 +32,20 @@ rule bwa_index_build:
         bwa index -p ../ref/FA1090ref {input}
         """
 
+#Map raw reads to the reference genome
 rule bwa_map:
     input:
         BT_index = rules.bwa_index_build.output,
         R1="../run_links/{sample}_R1_trim_PE.fastq.gz",
         R2="../run_links/{sample}_R2_trim_PE.fastq.gz"
     conda:
-        "./envs/SNPcall.yaml"
-    log:
-        "../logs/bwa/{sample}.log"
+        "./envs/bwa.yaml"
     output:
         "../output/sam/{sample}.sam"
     shell:
         "bwa mem -t 12 ../ref/FA1090ref {input.R1} {input.R2} > {output}"
 
-
+#Conver to bam file
 rule samtools_view:
     input:
         "../output/sam/{sample}.sam"
@@ -51,25 +53,82 @@ rule samtools_view:
         "../output/bam/{sample}.bam"
     shell:
         "samtools view -q 30 -bS {input} > {output}"
-        #samtools bam cut-off of 30?? for good alignments
 
+#Sort bam file according to coordinates
 rule samtools_sort:
     input:
         "../output/bam/{sample}.bam"
     conda:
-        "envs/SNPcall.yaml"
+        "envs/bwa.yaml"
     output:
         "../output/sorted/{sample}.sorted.bam"
     shell:
         "samtools sort {input} > {output}"
 
-
-rule mpileup
+#Mark and tag duplicated reads in bam files
+rule picard_mark_duplicates:
     input:
-        "../output/bam/{sample}sorted.bam"
-    conda:
-        "envs/SNPcall.yaml"
-    output:
         "../output/sorted/{sample}.sorted.bam"
+    conda:
+        "envs/picard.yaml"
+    output:
+        BAM="../output/dedup/{sample}_dedup.bam",
+        TXT="../output/dedup/{sample}_marked_dedup_metrics.txt" 
     shell:
-        "samtools mpileup -L1000 -d 1000 -m {input} | bcftools call -A -M -v -S"
+        "picard MarkDuplicates -I {input} -O {output.BAM} -M {output.TXT}"
+
+# collect BAM files that match the {sample} wildcard.
+def qualimap_input(wildcards):
+   files = expand('../output/dedup/{sample}_dedup.bam', sample=SAMPLES)
+   return filems
+
+#create input file for qualimap and run multibam qc on all files
+rule qualimap_tab:
+    input:
+        files=qualimap_input
+    output:
+        "../output/multibamqc/multibamqc.tab"
+    shell:
+        """
+        for i in {input};
+            do 
+                
+                id=$(basename $i .bam)
+                echo -e "${{id}}\t../../output/dedup/${{id}}.bam" >> {output}
+            done
+        """
+
+#run multiqc
+rule qualimap_multiqc:
+    input:
+        "../output/multibamqc/multibamqc.tab"
+    output:
+        "../output/multibamqc/report"
+    conda:
+        "envs/qualimap.yaml"
+    params:
+        threads=8
+    shell:
+        "qualimap multi-bamqc -d {input} --outdir {output}"
+
+
+
+# #SNP calling
+#rule FreeBayes
+    # input:
+
+    # conda:
+
+    # output:
+
+    # shell:
+
+# rule mpileup
+#     input:
+#         "../output/bam/{sample}sorted.bam"
+#     conda:
+#         "envs/SNPcall.yaml"
+#     output:
+#         "../output/sorted/{sample}.sorted.bam"
+#     shell:
+#         "samtools mpileup -L1000 -d 1000 -m {input} | bcftools call -A -M -v -S"

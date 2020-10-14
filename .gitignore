@@ -1,2 +1,4 @@
 /output/*
 /logs/*
+/workflow/.snakemake/*
+workflow/slurm*
