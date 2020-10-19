@@ -47,20 +47,28 @@ SNP_workflow
 │   ├── SNPcalls
 │   └── sorted
 ├── ref
-│   ├── Ngono_FA1090_genomic.gff
-│   └── Ngono_FA1090.fna
+│   ├── FA1090ref.1.bt2
+│   ├── FA1090ref.2.bt2
+│   ├── FA1090ref.3.bt2
+│   ├── FA1090ref.4.bt2
+│   ├── FA1090ref.amb
+│   ├── FA1090ref.ann
+│   ├── FA1090ref.bwt
+│   ├── FA1090ref.pac
+│   ├── FA1090ref.rev.1.bt2
+│   ├── FA1090ref.rev.2.bt2
+│   ├── FA1090ref.sa
+│   ├── Ngono_FA1090.fna
+│   ├── Ngono_FA1090.fna.fai
+│   └── Ngono_FA1090_genomic.gff
 ├── run_links
 └── workflow
     ├── Snakefile
     └── envs
-        ├── bowtie.yaml
         ├── bwa.yaml
         ├── freebayes.yaml
         ├── picard.yaml
         └── qualimap.yaml
-
-
-
 ```
 
 ```bash
