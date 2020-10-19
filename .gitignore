@@ -1,6 +1,0 @@
-/output/*
-/logs/*
-/workflow/.snakemake/*
-workflow/slurm*
-42clade_snps_filt.sh
-mening_scripts
