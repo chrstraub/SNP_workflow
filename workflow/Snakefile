@@ -2,7 +2,7 @@
 #18AR1374_R1_trim_PE.fastq.gz
 SAMPLES, = glob_wildcards("../run_links/{sample}_R1_trim_PE.fastq.gz")
 
-localrules: qualimap_tab
+localrules: bwa_index_build,qualimap_tab,bam_index
 #Target rule
 rule all:
     input:
@@ -13,7 +13,7 @@ rule all:
         "../ref/FA1090ref.sa",
         expand("../output/dedup/{sample}_dedup.bam", sample=SAMPLES),
         expand("../output/dedup/{sample}_marked_dedup_metrics.txt", sample=SAMPLES), 
-        "../output/multibamqc/report"
+        expand("../output/SNPcalls/{sample}_raw.vcf", sample=SAMPLES)
 
 #Create index for reference
 rule bwa_index_build:
@@ -40,10 +40,16 @@ rule bwa_map:
         R2="../run_links/{sample}_R2_trim_PE.fastq.gz"
     conda:
         "./envs/bwa.yaml"
+    params:
+        threads=16,
+        ref="../ref/FA1090ref",
+        rg="@RG\\tID:{sample}\\tPL:ILLUMINA\\tPU:gono\\tSM:{sample}"
+    log:
+        "../logs/bwa/{sample}.log"
     output:
         "../output/sam/{sample}.sam"
     shell:
-        "bwa mem -t 12 ../ref/FA1090ref {input.R1} {input.R2} > {output}"
+        "bwa mem -t {params.threads} {params.ref} -R '{params.rg}'z {input.R1} {input.R2} > {output} 2> {log}"
 
 #Conver to bam file
 rule samtools_view:
@@ -74,8 +80,10 @@ rule picard_mark_duplicates:
     output:
         BAM="../output/dedup/{sample}_dedup.bam",
         TXT="../output/dedup/{sample}_marked_dedup_metrics.txt" 
+    log:
+        "../logs/picard/{sample}.log"
     shell:
-        "picard MarkDuplicates -I {input} -O {output.BAM} -M {output.TXT}"
+        "picard MarkDuplicates -I {input} -O {output.BAM} -M {output.TXT} 2> {log}"
 
 # collect BAM files that match the {sample} wildcard.
 def qualimap_input(wildcards):
@@ -106,28 +114,39 @@ rule qualimap_multiqc:
         directory("../output/multibamqc/report")
     conda:
         "envs/qualimap.yaml"
-    params:
-        threads=8
     shell:
         "qualimap multi-bamqc -r -d {input.tab} -gff {input.gff} --outdir {output}"
 
+rule bam_index:
+    input:
+        bam="../output/dedup/{sample}_dedup.bam"
+    conda:
+        "envs/bwa.yaml"
+    output:
+        "../output/dedup/{sample}_dedup.bam.bai"
+    shell:
+        "samtools index {input.bam}"
 
-# #SNP calling
-#rule FreeBayes
-    # input:
+#SNP calling FreeBayes
+rule freebayes:
+    input:
+        ref="../ref/Ngono_FA1090.fna",
+        bam="../output/dedup/{sample}_dedup.bam",
+        indexes="../output/dedup/{sample}_dedup.bam.bai"
+    output:
+        "../output/SNPcalls/{sample}_raw.vcf"  # either .vcf or .bcf
+    conda:
+        "envs/freebayes.yaml"
+    log:
+        "../logs/freebayes/{sample}.log"
+    params:
+        min_map_qual=30, #default=30,
+        min_cov=10, #default=0,
+        ploidy=1,  #default=2,
+        min_alt_fract=0.7 #default=0
+    shell:
+        """
+        freebayes -p {params.ploidy} -! {params.min_cov} -m {params.min_map_qual} -f {input.ref} -F {params.min_alt_fract} -b {input.bam} -v {output} 1> {log}"""
 
-    # conda:
-
-    # output:
-
-    # shell:
-
-# rule mpileup
-#     input:
-#         "../output/bam/{sample}sorted.bam"
-#     conda:
-#         "envs/SNPcall.yaml"
-#     output:
-#         "../output/sorted/{sample}.sorted.bam"
-#     shell:
-#         "samtools mpileup -L1000 -d 1000 -m {input} | bcftools call -A -M -v -S"
+#-p = ploidy default =2
+# -F  --min-alternate-fraction N   Require at least this fraction of observations supporting an alternate allele within a single individual in the in order to evaluate the position.  default: 0.0

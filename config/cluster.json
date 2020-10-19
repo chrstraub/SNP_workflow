@@ -3,9 +3,14 @@
     {
         "account" : "cstraub",
         "nodes" : 1,
-        "ntasks" : 12,
+        "ntasks" : 2,
         "partition" : "prod",
-        "output"    : "..logs/cluster/{rule}.{wildcards}.out",
+        "name"      : "JOBNAME.{rule}.{wildcards}",
+        "output"    : "../logs/cluster/{rule}.{wildcards}.out",
         "error"     : "../logs/cluster/{rule}.{wildcards}.err"
+    },
+    "bwa_map" :
+    {
+        "ntasks" : 16
     }
 }
