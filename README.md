@@ -89,7 +89,7 @@ You can also SLURM to dispatch the scripts to the HPC. Edit the file `config/clu
 snakemake --use-conda -n -R -j 12 -p --local-cores 1 --cluster-config ../config/cluster.json --cluster "sbatch -A {cluster.account} -p {cluster.partition} --ntasks {cluster.ntasks}" --latency-wait 120
 
 #submit real job
-snakemake --use-conda -R freebayes -j 12 -p --local-cores 1 --cluster-config ../config/cluster.json --cluster "sbatch -A {cluster.account} -p {cluster.partition} --ntasks {cluster.ntasks}" --latency-wait 300
+snakemake --use-conda -R -j 12 -p --local-cores 1 --cluster-config ../config/cluster.json --cluster "sbatch -A {cluster.account} -p {cluster.partition} --ntasks {cluster.ntasks}" --latency-wait 300
 ##local rules are executed with 1 core
 ```
 

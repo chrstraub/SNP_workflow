@@ -49,7 +49,7 @@ rule bwa_map:
     output:
         "../output/sam/{sample}.sam"
     shell:
-        "bwa mem -t {params.threads} {params.ref} -R '{params.rg}'z {input.R1} {input.R2} > {output} 2> {log}"
+        "bwa mem -t {params.threads} {params.ref} -R '{params.rg}' {input.R1} {input.R2} > {output} 2> {log}"
 
 #Conver to bam file
 rule samtools_view:
